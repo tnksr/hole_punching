@@ -1,6 +1,6 @@
 /*
 server
-    サーバ側
+サーバ側
 */
 package main
 
@@ -20,7 +20,20 @@ var (
 func registClientAddr(addr *net.UDPAddr) {
     mutex.Lock()
     defer mutex.Unlock()
-    clientAddrMap[addr.String()] = addr
+    if _, ok := clientAddrMap[addr.String()]; !ok {
+        clientAddrMap[addr.String()] = addr
+    }
+}
+
+// 他のクライアントのアドレスを取得する
+func getOtherAddr(clientAddr *net.UDPAddr) (*net.UDPAddr) {
+    for addrString, otherAddr := range clientAddrMap {
+        if addrString == clientAddr.String() {
+            continue;
+        } 
+        return otherAddr
+    }
+    return nil
 }
 
 func main() {
@@ -30,7 +43,7 @@ func main() {
        log.Fatal(err, "1: resolve udp address error.")
     }
     
-    // 接続確認
+    // 接続
     conn, err := net.ListenUDP("udp", serverAddr)
     if err != nil {
        log.Fatal(err, "2: listen udp error.")
@@ -38,7 +51,8 @@ func main() {
     defer conn.Close()
     
     buffer := make([]byte, 512)
-    for {
+    // 接続は2台までとする（仮）
+    for len(clientAddrMap) < 2 {
         // クライアントのアドレスを受け取る
         _, clientAddr, err := conn.ReadFromUDP(buffer)
         if err != nil {
@@ -53,13 +67,13 @@ func main() {
         log.Println(clientAddrMap)
         registClientAddr(clientAddr)
         log.Println(clientAddrMap)
+    }
 
-        /* TODO
-        クライアントにアドレスを渡す
-        今はサーバのアドレス渡してるので
-        clientAddrMapから取り出して渡す
-        */
-        conn.WriteToUDP([]byte(serverAddr.String()), clientAddr)
+    for _, clientAddr := range clientAddrMap {
+        // 接続クライアントに他のクライアントのアドレスを渡す
+        otherAddr := getOtherAddr(clientAddr)
+        log.Println(otherAddr)
+        conn.WriteToUDP([]byte(otherAddr.String()), clientAddr)
     }
 }
 

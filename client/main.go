@@ -1,4 +1,7 @@
-// client 
+/*
+client
+クライアント側
+*/
 package main
 
 import (
@@ -23,20 +26,25 @@ func main() {
     if err != nil {
        log.Fatal(err) 
     }
+    defer conn.Close()
 
     buffer := make([]byte, 128)
     //otherAddr := make(*net.UDPAddr, 8)
     var otherAddr *net.UDPAddr
     
     for {
-        // サーバに接続
-        _, err := conn.Write([]byte(serverAddr.String()))
+        // 自分のアドレスを送る
+        myAddr := conn.LocalAddr()
+        _, err := conn.Write([]byte(myAddr.String()))
         if err != nil {
             log.Fatal(err)
         }
-        //time.Sleep(time.Second)
+
         // 相手のアドレスを受け取る
         n, err := conn.Read(buffer)
+        if err != nil {
+            log.Fatal(err)
+        }
         if n > 0 {
             otherAddr, err = net.ResolveUDPAddr("udp", string(buffer[:n]))
             log.Println(string(buffer[:n]), "buffer")
