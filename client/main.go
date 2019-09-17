@@ -11,6 +11,8 @@ import (
     //"sync"
 )
 
+var otherAddr *net.UDPAddr 
+
 func main() {
     // UDPのエンドポイントを返す
     //serverAddr, err := net.ResolveUDPAddr("udp", "13.59.148.159:60000") // EC2
@@ -21,40 +23,44 @@ func main() {
     }
 
     // 接続開始
-    conn, err := net.DialUDP("udp", nil, serverAddr)
+    serverConn, err := net.DialUDP("udp", nil, serverAddr)
     log.Println("dial up ...", serverAddr.String())
     if err != nil {
        log.Fatal(err) 
     }
-    defer conn.Close()
+    defer serverConn.Close()
 
     buffer := make([]byte, 128)
-    //otherAddr := make(*net.UDPAddr, 8)
-    var otherAddr *net.UDPAddr
     
     for {
         // 自分のアドレスを送る
-        myAddr := conn.LocalAddr()
-        _, err := conn.Write([]byte(myAddr.String()))
+        myAddr := serverConn.LocalAddr()
+        _, err := serverConn.Write([]byte(myAddr.String()))
         if err != nil {
             log.Fatal(err)
         }
 
         // 相手のアドレスを受け取る
-        n, err := conn.Read(buffer)
+        n, err := serverConn.Read(buffer)
         if err != nil {
             log.Fatal(err)
         }
         if n > 0 {
-            otherAddr, err = net.ResolveUDPAddr("udp", string(buffer[:n]))
-            log.Println(string(buffer[:n]), "buffer")
-            log.Println(otherAddr, "other")
+            receivedData, err := net.ResolveUDPAddr("udp", string(buffer[:n]))
+            if err != nil {
+                log.Fatal(err)
+            }
+            otherAddr = receivedData
             break
         }
     }
 
     // 受け取った相手のアドレスにリクエスト投げる
     for {
-        break
+        userConn, err := net.DialUDP("udp", nil, otherAddr)
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer userConn.Close()
     }
 }
