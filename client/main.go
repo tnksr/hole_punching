@@ -5,6 +5,7 @@ client
 package main
 
 import (
+    "flag"
     "log"
     "net"
     //"time"
@@ -14,25 +15,34 @@ import (
 var otherAddr *net.UDPAddr 
 
 func main() {
-    // UDPのエンドポイントを返す
-    //serverAddr, err := net.ResolveUDPAddr("udp", "13.59.148.159:60000") // EC2
-    serverAddr, err := net.ResolveUDPAddr("udp", ":60000")  // local
-    // エラー処理
+    // サーバのアドレス
+    var serverAddrString string
+    portString := ":60000"
+    // サーバのアドレスをコマンドライン引数から受け取る
+    flag.Parse()
+    parseArgs := flag.Args()
+    if len(parseArgs) < 1 {
+        serverAddrString = ""
+    } else {
+        serverAddrString = parseArgs[0]
+    }
+    serverAddrString += portString
+
+    // サーバを探す
+    serverAddr, err := net.ResolveUDPAddr("udp", serverAddrString)
     if err != nil {
        log.Fatal(err) 
     }
 
     // 接続開始
     serverConn, err := net.DialUDP("udp", nil, serverAddr)
-    log.Println("dial up ...", serverAddr.String())
     if err != nil {
        log.Fatal(err) 
     }
     defer serverConn.Close()
+    log.Println("Connect: ", serverAddr.String())
 
-    buffer := make([]byte, 128)
-    
-    for {
+    for (otherAddr == nil) {
         // 自分のアドレスを送る
         myAddr := serverConn.LocalAddr()
         _, err := serverConn.Write([]byte(myAddr.String()))
@@ -41,26 +51,17 @@ func main() {
         }
 
         // 相手のアドレスを受け取る
+        buffer := make([]byte, 128)
         n, err := serverConn.Read(buffer)
         if err != nil {
             log.Fatal(err)
         }
-        if n > 0 {
-            receivedData, err := net.ResolveUDPAddr("udp", string(buffer[:n]))
-            if err != nil {
-                log.Fatal(err)
-            }
-            otherAddr = receivedData
-            break
-        }
-    }
 
-    // 受け取った相手のアドレスにリクエスト投げる
-    for {
-        userConn, err := net.DialUDP("udp", nil, otherAddr)
+        // 受け取ったアドレスを探す
+        receivedData := string(buffer[:n])
+        otherAddr, err = net.ResolveUDPAddr("udp", receivedData)
         if err != nil {
             log.Fatal(err)
         }
-        defer userConn.Close()
     }
 }

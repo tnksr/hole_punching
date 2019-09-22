@@ -28,10 +28,9 @@ func registClientAddr(addr *net.UDPAddr) {
 // 他のクライアントのアドレスを取得する
 func getOtherAddr(clientAddr *net.UDPAddr) (*net.UDPAddr) {
     for addrString, otherAddr := range clientAddrMap {
-        if addrString == clientAddr.String() {
-            continue;
+        if addrString != clientAddr.String() {
+            return otherAddr
         } 
-        return otherAddr
     }
     return nil
 }
