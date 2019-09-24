@@ -8,11 +8,20 @@ import (
     "flag"
     "log"
     "net"
+    "bufio"
     //"time"
     //"sync"
 )
 
 var otherAddr *net.UDPAddr 
+
+def ScanStdinByte() {
+    stdin := bufio.NewScanner(os.Stdin)
+    for stdin.Scan() {
+        text := stdin.Text()
+        return []byte(text)
+    }
+}
 
 func main() {
     // サーバのアドレス
@@ -42,6 +51,7 @@ func main() {
     defer serverConn.Close()
     log.Println("Connect: ", serverAddr.String())
 
+    // P2P通信したい相手のアドレス
     for (otherAddr == nil) {
         // 自分のアドレスを送る
         myAddr := serverConn.LocalAddr()
@@ -58,8 +68,30 @@ func main() {
         }
 
         // 受け取ったアドレスを探す
-        receivedData := string(buffer[:n])
-        otherAddr, err = net.ResolveUDPAddr("udp", receivedData)
+        receivedFromServer := string(buffer[:n])
+        otherAddr, err = net.ResolveUDPAddr("udp", receivedFromServer)
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+
+    // 接続
+    conn, err := net.DialUDP("udp", nil, otherAddr)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+
+    receivedData := make([]byte, 256)
+    sendData := ScanStdinByte()
+    for (receivedData == nil) {
+        // 送信
+        _, err := conn.Write(sendData)
+        if err != nil {
+            log.Fatal(err)
+        }
+        // 受信
+        n, err := conn.Read(receivedData)
         if err != nil {
             log.Fatal(err)
         }
