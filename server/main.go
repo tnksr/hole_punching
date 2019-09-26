@@ -7,6 +7,7 @@ package main
 import (
     "log"
     "net"
+    "time"
     "sync"
 )
 
@@ -15,6 +16,14 @@ var (
 	clientAddrMap = make(map[string]*net.UDPAddr, 8)
 	mutex      sync.Mutex
 )
+// マップのキーを取り出す
+func keys(m map[string]*net.UDPAddr) []string {
+    ks := []string{}
+    for k, _ := range m {
+        ks = append(ks, k)
+    }
+    return ks
+}
 
 // クライアントのアドレスを登録する
 func registClientAddr(addr *net.UDPAddr) {
@@ -50,30 +59,35 @@ func main() {
     defer conn.Close()
     
     buffer := make([]byte, 512)
+
     // 接続は2台までとする（仮）
-    for len(clientAddrMap) < 2 {
+    clientNum := 2
+    for {
         // クライアントのアドレスを受け取る
-        _, clientAddr, err := conn.ReadFromUDP(buffer)
-        if err != nil {
-            log.Fatal(err, "3: connect error")
+        go func(conn *net.UDPConn) {
+            _, clientAddr, err := conn.ReadFromUDP(buffer)
+            if err != nil {
+                log.Fatal(err, "3: connect error")
+            }
+            // 接続クライアントを登録
+            registClientAddr(clientAddr)
+            // 登録したら表示
+            log.Println(keys(clientAddrMap))
+        } (conn)
+
+
+        // TODO: ネスト浅くしたい
+        if len(clientAddrMap) >= clientNum {
+            for _, clientAddr := range clientAddrMap {
+                // 接続クライアントに他のクライアントのアドレスを渡す
+                otherAddr := getOtherAddr(clientAddr)
+                conn.WriteToUDP([]byte(otherAddr.String()), clientAddr)
+            }
+            // mapを空にする
+            clientAddrMap = make(map[string]*net.UDPAddr)
+            // 削除したら表示
+            log.Println(keys(clientAddrMap))
         }
-        // 接続クライアントのアドレス
-        // log.Println(conn.RemoteAddr(), "remote")
-        // サーバのアドレス 
-        // log.Println(conn.LocalAddr(), "local")
-
-        // 接続クライアントを登録
-        log.Println(clientAddrMap)
-        registClientAddr(clientAddr)
-        log.Println(clientAddrMap)
-    }
-
-    for _, clientAddr := range clientAddrMap {
-        // 接続クライアントに他のクライアントのアドレスを渡す
-        otherAddr := getOtherAddr(clientAddr)
-        log.Println(otherAddr)
-        conn.WriteToUDP([]byte(otherAddr.String()), clientAddr)
+        time.Sleep(1000 * time.Millisecond)
     }
 }
-
-
