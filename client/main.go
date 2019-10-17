@@ -83,25 +83,25 @@ func main() {
 	defer conn.Close()
 	log.Println("Connect: ", otherAddr.String())
 
-	n := 0
 	receivedData := make([]byte, 256)
 	//sendData := ScanStdinByte()
 	sendData := []byte("This is" + conn.LocalAddr().String())
 
-	for n == 0 {
-		// 受信
-		go func(conn *net.UDPConn) {
+    go func(conn *net.UDPConn) {
+	    n := 0
+	    for n == 0 {
             n, err = conn.Read(receivedData)
             if err != nil {
                 log.Fatal(err)
             }
             log.Println(receivedData[:n])
-        } (conn)
+        }
+	} (conn)
 
-		// 送信
-		_, err := conn.Write(sendData)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+    // 送信
+    n, err := conn.WriteToUDP(sendData, otherAddr)
+	if err != nil {
+        log.Fatal(err)
+    }
+    log.Println(conn.RemoteAddr(), n, err)
 }

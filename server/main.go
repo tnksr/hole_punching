@@ -7,7 +7,6 @@ package main
 import (
     "log"
     "net"
-    "time"
     "sync"
 )
 
@@ -63,8 +62,8 @@ func main() {
     // 接続は2台までとする（仮）
     clientNum := 2
     for {
-        // クライアントのアドレスを受け取る
-        go func(conn *net.UDPConn) {
+        for len(clientAddrMap) < clientNum {
+            // クライアントのアドレスを受け取る
             _, clientAddr, err := conn.ReadFromUDP(buffer)
             if err != nil {
                 log.Fatal(err, "3: connect error")
@@ -73,21 +72,16 @@ func main() {
             registClientAddr(clientAddr)
             // 登録したら表示
             log.Println(keys(clientAddrMap))
-        } (conn)
-
-
-        // TODO: ネスト浅くしたい
-        if len(clientAddrMap) >= clientNum {
-            for _, clientAddr := range clientAddrMap {
-                // 接続クライアントに他のクライアントのアドレスを渡す
-                otherAddr := getOtherAddr(clientAddr)
-                conn.WriteToUDP([]byte(otherAddr.String()), clientAddr)
-            }
-            // mapを空にする
-            clientAddrMap = make(map[string]*net.UDPAddr)
-            // 削除したら表示
-            log.Println(keys(clientAddrMap))
         }
-        time.Sleep(1000 * time.Millisecond)
+
+        // 接続クライアントに他のクライアントのアドレスを渡す
+        for _, clientAddr := range clientAddrMap {
+            otherAddr := getOtherAddr(clientAddr)
+            conn.WriteToUDP([]byte(otherAddr.String()), clientAddr)
+        }
+        // mapを空にする
+        clientAddrMap = make(map[string]*net.UDPAddr)
+        // 削除したら表示
+        log.Println(keys(clientAddrMap))
     }
 }
